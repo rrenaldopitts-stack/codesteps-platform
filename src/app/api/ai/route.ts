@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `****** "Content-Type": "application/json" },
+      headers: { Authorization: "Bearer " + process.env.OPENAI_API_KEY, "Content-Type": "application/json" },
       signal: AbortSignal.timeout(20000),
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",

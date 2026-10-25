@@ -20,19 +20,27 @@ export async function POST(request: Request) {
     return failure("Choose a lesson and intent, provide code (up to 8,000 characters) and error text (up to 2,000), and consent to sharing them.");
   }
   if (!process.env.OPENAI_API_KEY) return failure("Live AI is not configured. Use the local demo hints instead.", 503);
-  const learner = await getLearner();
-  if (learner.isGuest) return failure("Sign in to use live AI. Local demo hints remain available.", 401);
-  const course = typeof body.courseId === "string" ? await readPracticeCourse(learner.user.id, body.courseId) : undefined;
-  const practiceLesson = course?.lessons.find((item) => item.id === body.lessonId);
-  const lesson = body.courseId ? practiceLesson && { title: practiceLesson.title, task: practiceLesson.exercise } :
-    body.lessonId === "playground" ? { title: "JavaScript practice terminal", task: "Help the learner understand a small plain JavaScript example. The terminal has no network, DOM, imports, Node.js, JSX, or TypeScript support." } :
-    lessons.find((item) => item.id === body.lessonId);
-  if (!lesson) return failure("Lesson not found.", 404);
-  if (!(await consumeLimit(`ai:minute:${learner.user.id}`, 5, 60)) ||
-      !(await consumeLimit(`ai:day:${learner.user.id}`, 30, 86400)) ||
-      !(await consumeLimit("ai:global:day", 500, 86400))) {
-    return failure("AI request limit reached. Try again later or use a local demo hint.", 429);
+  try {
+    const learner = await getLearner();
+    if (learner.isGuest) return failure("Sign in to use live AI. Local demo hints remain available.", 401);
+    const course = typeof body.courseId === "string" ? await readPracticeCourse(learner.user.id, body.courseId) : undefined;
+    const practiceLesson = course?.lessons.find((item) => item.id === body.lessonId);
+    const lesson = body.courseId ? practiceLesson && { title: practiceLesson.title, task: practiceLesson.exercise } :
+      body.lessonId === "playground" ? { title: "JavaScript practice terminal", task: "Help the learner understand a small plain JavaScript example. The terminal has no network, DOM, imports, Node.js, JSX, or TypeScript support." } :
+      lessons.find((item) => item.id === body.lessonId);
+    if (!lesson) return failure("Lesson not found.", 404);
+    if (!(await consumeLimit(`ai:minute:${learner.user.id}`, 5, 60)) ||
+        !(await consumeLimit(`ai:day:${learner.user.id}`, 30, 86400)) ||
+        !(await consumeLimit("ai:global:day", 500, 86400))) {
+      return failure("AI request limit reached. Try again later or use a local demo hint.", 429);
+    }
+    return await requestHint(lesson, body);
+  } catch {
+    return failure("Unable to access your learning data. Use a local demo hint or retry.", 503);
   }
+}
+
+async function requestHint(lesson: { title: string; task: string }, body: Record<string, unknown>) {
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

@@ -6,8 +6,12 @@ import { getLearner, saveNote } from "@/server/store";
 export async function GET(request: Request) {
   const lessonId = new URL(request.url).searchParams.get("lessonId");
   if (!lessons.some((lesson) => lesson.id === lessonId)) return failure("Lesson not found.", 404);
-  const { notes } = await getLearner();
-  return success<Note | null>(notes.get(lessonId!) ?? null);
+  try {
+    const { notes } = await getLearner();
+    return success<Note | null>(notes.get(lessonId!) ?? null);
+  } catch {
+    return failure("Unable to load notes. Please try again.", 503);
+  }
 }
 
 export async function PUT(request: Request) {
@@ -16,6 +20,10 @@ export async function PUT(request: Request) {
     return failure("Provide lessonId and content (up to 5,000 characters) as same-origin JSON.");
   }
   if (!lessons.some((lesson) => lesson.id === body.lessonId)) return failure("Lesson not found.", 404);
-  const { user } = await getLearner();
-  return success(await saveNote(user.id, body.lessonId, body.content));
+  try {
+    const { user } = await getLearner();
+    return success(await saveNote(user.id, body.lessonId, body.content));
+  } catch {
+    return failure("Unable to save notes. Please try again.", 503);
+  }
 }

@@ -72,29 +72,29 @@ export function AccountWorkspace() {
 
   return <section className="panel account-panel" aria-label="Account">
     {error && <p role="alert" className="error-message">{error}</p>}
-    {!session ? <><p role="status">Loading your account…</p>{error && <button type="button" className="button button-secondary" onClick={() => void loadSession()}>Try again</button>}</> :
+    {!session ? <><p role="status">Loading your account…</p>{error && <button type="button" className="button secondary" onClick={() => void loadSession()}>Try again</button>}</> :
       !session.isGuest ? <>
         <h2>Signed in as {session.user.name}</h2>
         <p>Your progress and notes are saved to your account on this server.</p>
-        <div className="button-row"><Link className="button button-primary" href="/dashboard">Open dashboard</Link><button className="button button-secondary" type="button" disabled={busy} onClick={signOut}>Sign out</button></div>
+        <div className="button-row"><Link className="button primary" href="/dashboard">Open dashboard</Link><button className="button secondary" type="button" disabled={busy} onClick={signOut}>Sign out</button></div>
       </> : <>
-        <div className="demo-banner"><strong>Guest workspace</strong><p>You are not signed in. Guest progress is saved in this browser’s session for up to 30 days. Register or sign in to merge it into your account. Existing account notes are kept.</p></div>
+        <div className="demo-banner"><strong>Guest workspace</strong><p>You are not signed in. Guest progress is saved on the server; this browser’s cookie keeps access for up to 30 days. Register or sign in to merge it into your account. Existing account notes are kept.</p></div>
         <div className="button-row" aria-label="Account action">
-          <button type="button" className={`button ${mode === "login" ? "button-primary" : "button-secondary"}`} aria-pressed={mode === "login"} disabled={busy} onClick={() => { setMode("login"); setError(""); }}>Sign in</button>
-          <button type="button" className={`button ${mode === "register" ? "button-primary" : "button-secondary"}`} aria-pressed={mode === "register"} disabled={busy} onClick={() => { setMode("register"); setError(""); }}>Create account</button>
+          <button type="button" className={`button ${mode === "login" ? "primary" : "secondary"}`} aria-pressed={mode === "login"} disabled={busy} onClick={() => { setMode("login"); setError(""); }}>Sign in</button>
+          <button type="button" className={`button ${mode === "register" ? "primary" : "secondary"}`} aria-pressed={mode === "register"} disabled={busy} onClick={() => { setMode("register"); setError(""); }}>Create account</button>
         </div>
         <h2>{mode === "register" ? "Create your account" : "Welcome back"}</h2>
         <form onSubmit={submit} className="account-form">
-          <label htmlFor="account-username">Username</label>
-          <input id="account-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} pattern="[a-zA-Z0-9_]{3,32}" minLength={3} maxLength={32} required value={username} onChange={(event) => setUsername(event.target.value)} aria-describedby="username-help" />
-          <p id="username-help">3–32 letters, numbers, or underscores. Not case-sensitive.</p>
-          <label htmlFor="account-password">Password</label>
-          <input id="account-password" name="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={12} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby="password-help" />
-          <p id="password-help">12–128 characters. Save it securely: there is no email or password reset.</p>
-          <button className="button button-primary" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}</button>
+          <label className="field-label" htmlFor="account-username">Username</label>
+          <input className="notes-input compact-input" id="account-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} pattern="[a-zA-Z0-9_]{3,32}" minLength={3} maxLength={32} required disabled={busy} value={username} onChange={(event) => setUsername(event.target.value)} aria-describedby="username-help" />
+          <p id="username-help" className="field-help">3–32 letters, numbers, or underscores. Not case-sensitive.</p>
+          <label className="field-label" htmlFor="account-password">Password</label>
+          <input className="notes-input compact-input" id="account-password" name="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={12} maxLength={128} required disabled={busy} value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby="password-help" />
+          <p id="password-help" className="field-help">12–128 characters. Save it securely: there is no email or password reset.</p>
+          <button className="button primary" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}</button>
         </form>
         <p><Link href="/dashboard">Continue as a guest</Link></p>
-        <button type="button" className="button button-secondary" disabled={busy} onClick={signOut}>Clear guest workspace</button>
+        <button type="button" className="button secondary" disabled={busy} onClick={signOut}>Clear guest workspace</button>
       </>}
   </section>;
 }

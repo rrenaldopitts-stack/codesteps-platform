@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { consumeLimit, createAccountSession, createGuest, deleteSession, findAccount, findSession, type SessionRecord } from "@/server/database";
+import { consumeLimit, createAccountSession, createGuest, deleteSession, findAccount, findSession, PracticeError, type SessionRecord } from "@/server/database";
 
 const cookieName = "codesteps-session";
 const accountLifetime = 60 * 60 * 24 * 7;
@@ -28,10 +28,10 @@ async function setSessionCookie(token: string, maxAge: number) {
 
 export async function getSession(): Promise<SessionRecord> {
   const tokenHash = await currentTokenHash();
-  const existing =   tokenHash ? await findSession(tokenHash) : undefined;
+  const existing = tokenHash ? await findSession(tokenHash) : undefined;
   if (existing) return existing;
   const token = randomBytes(32).toString("hex");
-    const session = await createGuest(hashToken(token), Date.now() + guestLifetime * 1000);
+  const session = await createGuest(hashToken(token), Date.now() + guestLifetime * 1000);
   await setSessionCookie(token, guestLifetime);
   return session;
 }
@@ -56,9 +56,9 @@ export async function authenticate(body: Record<string, unknown>, register: bool
   // Use the verified persisted session as the client bucket, with a shared fallback
   // and global ceiling so dropping cookies cannot bypass the hashing budget.
   const oldTokenHash = await currentTokenHash();
-  const previous =   oldTokenHash ? await findSession(oldTokenHash) : undefined;
+  const previous = oldTokenHash ? await findSession(oldTokenHash) : undefined;
   const clientKey = previous ? hashToken(previous.user.id) : "unidentified";
-    if (!(await consumeLimit("auth:global", 100, 900)) || !(await consumeLimit(`auth:client:${clientKey}`, 12, 900))) {
+  if (!(await consumeLimit("auth:global", 100, 900)) || !(await consumeLimit(`auth:client:${clientKey}`, 12, 900))) {
     throw new AuthError("Too many attempts. Please try again later.", 429);
   }
   if (typeof body.username !== "string" || !/^[a-zA-Z0-9_]{3,32}$/.test(body.username) ||
@@ -84,9 +84,10 @@ export async function authenticate(body: Record<string, unknown>, register: bool
       oldTokenHash, tokenHash: hashToken(token), expiresAt: Date.now() + accountLifetime * 1000,
     });
   } catch (error) {
-    if (register && error instanceof Error && "code" in error && error.code === "23505") {
+    if (register && error instanceof Error && "code" in error && ["23505", "SQLITE_CONSTRAINT_UNIQUE"].includes(String(error.code))) {
       throw new AuthError("That username is unavailable.", 409);
     }
+    if (error instanceof PracticeError) throw new AuthError(error.message, error.status);
     throw error;
   }
   await setSessionCookie(token, accountLifetime);

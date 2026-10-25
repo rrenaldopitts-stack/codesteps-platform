@@ -11,13 +11,24 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). No AI key or account is required for notes-based courses. Data is stored in Neon PostgreSQL: copy `.env.example` to `.env.local` and set `DATABASE_URL`. Tables are created automatically on first use.
+Open [localhost:3000](http://localhost:3000). No AI key, database service, or account is required to try notes-based courses. With `DATABASE_URL` unset, data is saved in local SQLite at `.data/codesteps.db`; set `CODESTEPS_DATA_DIR` to use another private persistent directory. Configure Neon for shared or serverless deployments.
 
 ```bash
 npm run lint     # ESLint, including Next.js and React rules
 npm run build    # Production build and TypeScript checks
 npm start       # Serve the production build
 ```
+
+### Connect your Neon database
+
+1. In your Neon project, open **Connect** and copy the PostgreSQL connection string. Prefer the pooled endpoint for deployments with multiple app instances.
+2. Copy `.env.example` to `.env.local` and set `DATABASE_URL` there. For deployment, set it in your hosting provider's server-side secret settings instead.
+3. Restart the app. Tables are initialized automatically when a learner API is first used; the database role needs permission to create the app's tables and indexes.
+4. Open `/account` or `/dashboard`, save a reflection or course, and reload to verify persistence.
+
+Never paste the connection string into chat, commit `.env.local`, or use a `NEXT_PUBLIC_` variable. Remote PostgreSQL connections require verified TLS. An invalid or unavailable `DATABASE_URL` produces a safe API error; it does **not** silently save to SQLite.
+
+SQLite and PostgreSQL are separate stores. Setting `DATABASE_URL` does not copy local accounts or courses into Neon. Keep a backup of existing data before switching; removing the variable reconnects to the original local SQLite file. Use Neon for serverless hosting rather than ephemeral local disk. No live Neon connection can be verified without your privately configured connection string.
 
 ## Walkthrough
 
@@ -28,7 +39,7 @@ npm start       # Serve the production build
 - **Lesson Practice `/courses/:id/lessons/:lessonId`**: compare an original note excerpt with added teaching material, explore a real-world use, attempt an exercise, answer a quiz, and save a reflection.
 - **Manage Notes `/courses/:id/notes`**: read your full source notes, append more notes, or delete the entire course.
 - **Practice Terminal `/playground`**: run small JavaScript examples with console output, errors, and local or optional live AI help. The same terminal appears in JavaScript course lessons.
-- **Dashboard `/dashboard`**: access notes-based courses and the four beginner curriculum modules.
+- **Dashboard `/dashboard`**: track lessons across saved courses and the starter curriculum, challenge completions, overall progress, and XP. Continue a saved course or beginner module.
 - **Lessons `/lessons/your-first-page`**: read instructions, attempt a task in a scratchpad, request hints, save a reflection, and mark completion. The other modules cover JavaScript, React, and APIs.
 - **Practice `/challenges`**: choose a challenge, test your solution in your own editor, review every rubric item, then mark it complete. Completion can be undone.
 
@@ -36,9 +47,9 @@ npm start       # Serve the production build
 
 The homepage is a landing experience, not a new backend course-generation service. **Generate Learning Path** matches JavaScript, Python, React, SQL, TypeScript, Node.js, or AI Engineering to a curated preview. It handles aliases such as `js` and unsupported/empty searches without making external requests. Relevant previews open an existing lesson or an official external learning resource. Roadmap buttons expand their ordered steps inline.
 
-Dashboard XP/streaks/achievements are explicitly **sample design data**, not live account metrics. Learner quotes are explicitly **illustrative placeholders**, not verified endorsements. The **View Demo** action jumps to that sample dashboard. **Blog** opens a short learning-journal dialog, documentation opens this README, and contact opens the repository's GitHub issue form. GitHub links to this repository; LinkedIn and Twitter/X icons link to their platform homepages, not invented company profiles.
+The homepage dashboard preview uses **sample design data**, not live account metrics. The real `/dashboard` calculates XP from current saved completions: 25 per lesson and 50 per challenge, including notes-based courses. Undoing completion or deleting a course reduces that total; XP is derived, not an independent rewards ledger. Streaks and badges remain previews. Learner quotes are explicitly **illustrative placeholders**, not verified endorsements. The **View Demo** action jumps to the sample dashboard. **Blog** opens a short learning-journal dialog, documentation opens this README, and contact opens the repository's GitHub issue form. GitHub links to this repository; LinkedIn and Twitter/X icons link to their platform homepages, not invented company profiles.
 
-The homepage itself requires no API key or external fonts/images. Learner data is stored in Neon PostgreSQL via the server-only `DATABASE_URL`. Never place database credentials in client components or `NEXT_PUBLIC_` variables.
+The homepage itself requires no API key, database, or external fonts/images. Theme selection is scoped to the homepage and resets to dark on reload. Learner data uses local SQLite by default or PostgreSQL when the server-only `DATABASE_URL` is set.
 
 #### Files and beginner-friendly responsibilities
 
@@ -127,14 +138,15 @@ Never paste credentials, personal data, or private code into an AI tool or this 
 src/app/          Pages, shared layout, and API route handlers
 src/components/   Interactive dashboard, lesson, and challenge workspaces
 src/lib/          Shared models, curriculum fixtures, and typed API client
-src/server/       PostgreSQL repository (`pg`), session/auth helpers, and HTTP validation
+src/server/       Shared repository, PostgreSQL/SQLite drivers, auth, and HTTP validation
 ```
 
 `src/lib/types.ts` defines the original curriculum models and `ApiResponse<T>` envelope. `src/lib/practice-types.ts` defines courses, lessons, saved practice, and request shapes. `src/lib/practice-catalog.ts` contains authored teaching material; `src/lib/practice-generator.ts` selects concepts and their source excerpts. To expand coverage, add a catalog entry with a topic, matching pattern, explanation, glossary, real-world use, exercise, hints, solution, rubric, and quiz. No new dependency is needed.
 
 ### Storage and access
 
-- Neon PostgreSQL stores courses and learner data, so data survives restarts and serverless redeploys. Keep `DATABASE_URL` in `.env.local` or your host's secret store, and use Neon's backup/branching features.
+- PostgreSQL (including Neon) stores shared courses, sessions, accounts, rate limits, and learner progress when `DATABASE_URL` is configured. Keep it in `.env.local` or your host's secret store and use the database provider's backups.
+- Without `DATABASE_URL`, SQLite keeps the same data in `CODESTEPS_DATA_DIR` (default `.data`). Preserve this directory across server restarts, restrict its access, and back it up. It is suitable for a single-server deployment, not a shared serverless filesystem.
 - A random HttpOnly, SameSite session cookie scopes every course API request to its owner. Guest access lasts up to 30 days and depends on retaining that cookie. Production cookies require HTTPS.
 - The existing `/account` page supports username/password registration, sign-in, and sign-out. Guest courses migrate into the account when registering or signing in, without losing their practice data. Accounts allow access from another browser; they do not provide password recovery.
 - The notes page supports permanent course deletion, including its source notes and reflections.
@@ -193,9 +205,11 @@ There was no existing test infrastructure in the initial repository. Use lint an
 10. Create a course. Open a lesson and verify the source excerpt is separate from curated explanations, glossary, and real-world examples.
 11. Attempt an exercise, reveal hints before the sample solution, answer the quiz, write a reflection and practice goal, and save. Reload to verify persistence.
 12. Complete a lesson. Add notes about a new supported concept via **Manage Notes**; confirm a new lesson appears and earlier work remains unchanged. Re-add the same concept and confirm no duplicates.
-13. Restart the server on the same data directory and verify the course remains. Use another browser session to confirm isolation.
+13. Restart with the same database configuration (or local data directory) and verify the course remains. Use another browser session to confirm isolation.
 14. Register or sign in after creating a guest course; verify it migrates. Delete the course from **Manage Notes** and confirm it no longer appears.
 15. Edit and save improved study notes. Add a new concept; verify your saved guide stays unchanged until you choose to rebuild and save it.
 16. Save a “needs more practice” goal and verify the review queue recommends that lesson.
 17. Run JavaScript in `/playground`; verify console output, syntax/runtime errors, timeout on an infinite loop, and blocked network/storage access. Confirm code runs again after a timeout.
 18. Without a key, verify local help works and live AI reports unavailable. With a configured key and account, explicitly consent and test a live hint; verify opting out does not send code externally.
+19. Complete a notes-course lesson and check `/dashboard`: completed lessons, overall progress, course cards, and XP should update. Undo completion or delete the course and verify totals decrease.
+20. Repeat persistence checks with a privately configured PostgreSQL database. An invalid connection must show a helpful error without credentials or silently switching to local storage.

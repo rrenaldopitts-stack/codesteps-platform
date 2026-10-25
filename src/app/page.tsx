@@ -40,7 +40,7 @@ const features: Feature[] = [
   { title: "Practice Challenges", description: "Put concepts to work with small coding exercises, thoughtful hints, and solutions to compare.", icon: CodeXml, tone: "orange", label: "Try a challenge", href: "/challenges" },
   { title: "Real-World Examples", description: "Connect the dots between a coding concept and the products and experiences it can power.", icon: Globe2, tone: "green", label: "Explore a lesson", href: "/lessons/your-first-page" },
   { title: "AI Tutor", description: "Ask questions, untangle errors, and get beginner-friendly guidance that helps you think for yourself.", icon: MessageCircle, tone: "pink", label: "Meet your coding coach", href: "/playground" },
-  { title: "Progress Tracking", description: "See your completed lessons and saved reflections. Preview how streaks, badges, and skill growth could look.", icon: TrendingUp, tone: "blue", label: "See your progress", href: "/dashboard" },
+  { title: "Progress Tracking", description: "Track saved-course lessons, challenges, earned XP, and reflections. Streaks and badges remain design previews.", icon: TrendingUp, tone: "blue", label: "See your progress", href: "/dashboard" },
 ];
 
 const roadmapIcons: Record<RoadmapId, LucideIcon> = { frontend: Layers3, backend: Server, ai: BrainCircuit };
@@ -164,7 +164,7 @@ export default function Home() {
       <section className="lf-container lf-section" id="dashboard-demo" aria-labelledby="dashboard-preview-title">
         <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><span className="lf-kicker">EVERY SMALL WIN COUNTS</span><h2 className="lf-section-title mt-3" id="dashboard-preview-title">Progress you can actually see.</h2><p className="lf-muted mt-3 max-w-xl text-sm leading-7">A preview of the bigger picture. The metrics below are illustrative; your actual completed lessons and reflections live in your dashboard.</p></div><Button asChild variant="outline" size="sm"><Link href="/dashboard">Open my dashboard <ArrowUpRight aria-hidden="true" /></Link></Button></div>
         <DashboardPreview />
-        <p className="lf-muted mt-5 text-center text-[11px]">XP, streaks, and achievements shown here are design previews—not live account features.</p>
+        <p className="lf-muted mt-5 text-center text-[11px]">These numbers are sample data. Your dashboard calculates actual XP from saved completions; streaks and achievements remain design previews.</p>
       </section>
       <section className="lf-container pb-20">
         <div className="lf-cta relative overflow-hidden rounded-2xl border px-6 py-14 text-center sm:px-12 sm:py-16"><span className="lf-kicker inline-flex items-center gap-2"><Sparkles className="size-3.5" aria-hidden="true" /> YOUR FIRST STEP IS THE MOST IMPORTANT ONE</span><h2 className="lf-section-title mt-5">Start Your Coding Journey Today</h2><p className="lf-muted mx-auto mt-4 max-w-lg text-sm leading-7">Learn faster with AI-powered roadmaps, courses, and projects.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><Button asChild size="lg"><Link href="/courses/new">Get Started Free <ArrowRight aria-hidden="true" /></Link></Button><Button asChild variant="outline" size="lg"><a href="#dashboard-demo"><Play className="size-3.5" aria-hidden="true" /> View Demo</a></Button></div><p className="lf-muted mt-5 text-[11px]">No credit card. No pressure. Just possibility.</p></div>

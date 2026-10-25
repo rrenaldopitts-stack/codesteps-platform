@@ -7,7 +7,7 @@
   --lf-muted: #a1a3b8;
   --lf-border: #242636;
   --lf-primary: #a897ff;
-  --lf-primary-button: #9273f9;
+  --lf-primary-button: #7454cf;
   --lf-subtle: #161423;
   --lf-tint: #a18aff14;
   color-scheme: dark;
@@ -55,7 +55,7 @@
 .learnflow-home .lf-button { font-family: inherit; line-height: 1.4; cursor: pointer; }
 .learnflow-home .lf-button:not(:disabled):hover { transform: translateY(-1px); }
 .learnflow-home .lf-button-primary { background: linear-gradient(135deg, var(--lf-primary-button), #7954db); color: #fff; border: 1px solid #bb9fff40; box-shadow: 0 4px 18px #865bf322, inset 0 1px 0 #ffffff1a; }
-.learnflow-home .lf-button-primary:hover { filter: brightness(1.1); }
+.learnflow-home .lf-button-primary:hover { filter: brightness(1.05); }
 .learnflow-home .lf-button-outline { background: var(--lf-panel); color: var(--lf-text); border: 1px solid var(--lf-border); }
 .learnflow-home .lf-button-outline:hover { border-color: var(--lf-primary); background: var(--lf-panel-hover); }
 .learnflow-home .lf-button-ghost { color: var(--lf-muted); background: transparent; border: 1px solid transparent; }

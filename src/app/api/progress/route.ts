@@ -3,7 +3,11 @@ import { failure, readBody, success } from "@/server/http";
 import { getLearner, persistProgress } from "@/server/store";
 
 export async function GET() {
-  return success((await getLearner()).progress);
+  try {
+    return success((await getLearner()).progress);
+  } catch {
+    return failure("Unable to load progress. Please try again.", 503);
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -14,6 +18,10 @@ export async function PATCH(request: Request) {
   }
   const items = body.kind === "lesson" ? lessons : challenges;
   if (!items.some((item) => item.id === body.id)) return failure("Learning item not found.", 404);
-  const { user } = await getLearner();
-  return success(await persistProgress(user.id, body.kind, body.id, body.complete));
+  try {
+    const { user } = await getLearner();
+    return success(await persistProgress(user.id, body.kind, body.id, body.complete));
+  } catch {
+    return failure("Unable to save progress. Please try again.", 503);
+  }
 }

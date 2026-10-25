@@ -1,4 +1,4 @@
-import { Pool, type PoolClient } from "pg";
+import { databaseDriver, type Queryable } from "./database-driver";
 import { randomUUID } from "node:crypto";
 import type { Note, Progress, User } from "@/lib/types";
 import type { PracticeCourse, PracticeEntry, PracticeSummary } from "@/lib/practice-types";
@@ -65,46 +65,12 @@ const schema = `
   CREATE INDEX IF NOT EXISTS practice_courses_user ON practice_courses(user_id);
 `;
 
-interface Shared {
-  codestepsPool?: Pool;
-  codestepsReady?: Promise<void>;
-}
-const shared = globalThis as typeof globalThis & Shared;
-
-function pool(): Pool {
-  if (!shared.codestepsPool) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) throw new Error("DATABASE_URL is not set. Add your Neon connection string to .env.local.");
-    shared.codestepsPool = new Pool({ connectionString, max: 5 });
-  }
-  return shared.codestepsPool;
+function ready() {
+  return databaseDriver(schema);
 }
 
-async function ready(): Promise<Pool> {
-  const db = pool();
-  shared.codestepsReady ??= db.query(schema).then(() => undefined, (error) => {
-    shared.codestepsReady = undefined;
-    throw error;
-  });
-  await shared.codestepsReady;
-  return db;
-}
-
-type Queryable = Pick<PoolClient, "query">;
-
-async function transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await (await ready()).connect();
-  try {
-    await client.query("BEGIN");
-    const result = await work(client);
-    await client.query("COMMIT");
-    return result;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+function transaction<T>(work: (client: Queryable) => Promise<T>): Promise<T> {
+  return ready().transaction(work);
 }
 
 /** Fixed-window counters survive restarts; expired keys are removed on every use. */
@@ -118,14 +84,14 @@ export async function consumeLimit(key: string, max: number, windowSeconds: numb
     // Serialize limiter updates so the count and key budget checks cannot race.
     await db.query("SELECT pg_advisory_xact_lock(hashtext('codesteps_rate_limits'))");
     await db.query("DELETE FROM rate_limits WHERE expires_at <= $1", [now]);
-    const current = await db.query("SELECT count FROM rate_limits WHERE key = $1", [key]);
+    const current = await db.query<{ count: number }>("SELECT count FROM rate_limits WHERE key = $1", [key]);
     if (current.rows[0]) {
       if (current.rows[0].count >= max) return false;
       await db.query("UPDATE rate_limits SET count = count + 1 WHERE key = $1", [key]);
       return true;
     }
     // Fail closed rather than evicting active limits when the key budget is exhausted.
-    const total = await db.query("SELECT count(*)::int AS total FROM rate_limits");
+    const total = await db.query<{ total: number }>("SELECT count(*)::int AS total FROM rate_limits");
     if (total.rows[0].total >= 10000) return false;
     await db.query("INSERT INTO rate_limits (key, count, expires_at) VALUES ($1, 1, $2)", [key, now + windowSeconds * 1000]);
     return true;
@@ -133,13 +99,13 @@ export async function consumeLimit(key: string, max: number, windowSeconds: numb
 }
 
 export async function findAccount(username: string): Promise<AccountRecord | undefined> {
-  const result = await (await ready()).query(
+  const result = await ready().query<AccountRecord>(
     "SELECT id, name, is_guest, password_salt, password_hash FROM users WHERE username = $1 AND is_guest = 0", [username]);
   return result.rows[0] as AccountRecord | undefined;
 }
 
 async function selectSession(db: Queryable, tokenHash: string): Promise<SessionRecord | undefined> {
-  const result = await db.query(`
+  const result = await db.query<{ id: string; name: string; is_guest: number; expires_at: string | number }>(`
     SELECT u.id, u.name, u.is_guest, s.expires_at FROM sessions s
     JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > $2
   `, [tokenHash, Date.now()]);
@@ -177,11 +143,18 @@ export async function createAccountSession(input: AccountSessionInput): Promise<
       await db.query("INSERT INTO users (id, name, username, is_guest, password_salt, password_hash) VALUES ($1, $2, $3, 0, $4, $5)",
         [account.id, account.username, account.username, account.salt, account.passwordHash]);
     }
-    const found = await db.query("SELECT id, name FROM users WHERE id = $1 AND is_guest = 0", [account.id]);
+    // Lock both owners in stable order before migrating or modifying their courses.
+    const oldSession = input.oldTokenHash ? await selectSession(db, input.oldTokenHash) : undefined;
+    for (const id of [...new Set([account.id, ...(oldSession?.isGuest ? [oldSession.user.id] : [])])].sort()) {
+      await db.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [id]);
+    }
+    const found = await db.query<User>("SELECT id, name FROM users WHERE id = $1 AND is_guest = 0", [account.id]);
     const target = found.rows[0] as User | undefined;
     if (!target) throw new Error("Account not found.");
     const previous = input.oldTokenHash ? await selectSession(db, input.oldTokenHash) : undefined;
     if (previous?.isGuest) {
+      const count = await db.query("SELECT count(*)::int AS total FROM practice_courses WHERE user_id = $1 OR user_id = $2", [target.id, previous.user.id]);
+      if (Number(count.rows[0].total) > 12) throw new PracticeError("Delete an older course before merging these accounts (12-course limit).", 409);
       await db.query("INSERT INTO completions (user_id, kind, item_id) SELECT $1, kind, item_id FROM completions WHERE user_id = $2 ON CONFLICT DO NOTHING",
         [target.id, previous.user.id]);
       await db.query("INSERT INTO notes (user_id, lesson_id, content, updated_at) SELECT $1, lesson_id, content, updated_at FROM notes WHERE user_id = $2 ON CONFLICT DO NOTHING",
@@ -226,7 +199,7 @@ export async function persistProgress(userId: string, kind: "lesson" | "challeng
 }
 
 export async function readNotes(userId: string): Promise<Map<string, Note>> {
-  const result = await (await ready()).query(
+  const result = await ready().query<Note>(
     `SELECT lesson_id AS "lessonId", user_id AS "userId", content, updated_at AS "updatedAt" FROM notes WHERE user_id = $1`, [userId]);
   return new Map((result.rows as Note[]).map((note) => [note.lessonId, note]));
 }
@@ -244,7 +217,7 @@ export class PracticeError extends Error {
 }
 
 async function selectPracticeCourse(db: Queryable, userId: string, id: string, lock = false): Promise<PracticeCourse | undefined> {
-  const result = await db.query(`SELECT document FROM practice_courses WHERE user_id = $1 AND id = $2${lock ? " FOR UPDATE" : ""}`, [userId, id]);
+  const result = await db.query<{ document: string }>(`SELECT document FROM practice_courses WHERE user_id = $1 AND id = $2${lock ? " FOR UPDATE" : ""}`, [userId, id]);
   return result.rows[0] ? JSON.parse(result.rows[0].document) as PracticeCourse : undefined;
 }
 
@@ -268,7 +241,7 @@ export async function insertPracticeCourse(userId: string, course: PracticeCours
   await transaction(async (db) => {
     // Lock the owner row so concurrent inserts cannot exceed the per-user cap.
     await db.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
-    const count = await db.query("SELECT count(*)::int AS total FROM practice_courses WHERE user_id = $1", [userId]);
+    const count = await db.query<{ total: number }>("SELECT count(*)::int AS total FROM practice_courses WHERE user_id = $1", [userId]);
     if (count.rows[0].total >= 12) throw new PracticeError("You can save 12 courses. Delete an older course before creating another.", 409);
     await db.query("INSERT INTO practice_courses (id, user_id, document) VALUES ($1, $2, $3)", [course.id, userId, JSON.stringify(course)]);
   });
@@ -276,6 +249,7 @@ export async function insertPracticeCourse(userId: string, course: PracticeCours
 
 export async function updatePracticeCourse(userId: string, id: string, update: { additionalNotes: string } | { improvedNotes: string } | { lessonId: string; entry: PracticeEntry }): Promise<PracticeCourse> {
   return transaction(async (db) => {
+    await db.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
     const course = await selectPracticeCourse(db, userId, id, true);
     if (!course) throw new PracticeError("Course not found.", 404);
     if ("additionalNotes" in update) {

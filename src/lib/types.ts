@@ -59,6 +59,18 @@ export interface NoteUpdate {
   content: string;
 }
 
+export interface HintRequest {
+  lessonId: string;
+  intent: "hint" | "error" | "review";
+  code: string;
+  error: string;
+  consent: true;
+}
+
+export interface HintResponse {
+  text: string;
+}
+
 export type ApiResponse<T> =
   | { data: T; error?: never }
   | { data?: never; error: string };

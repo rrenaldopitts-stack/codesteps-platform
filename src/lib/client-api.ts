@@ -1,6 +1,6 @@
-import type { ApiResponse, NoteUpdate, ProgressUpdate } from "./types";
+import type { ApiResponse, HintRequest, NoteUpdate, ProgressUpdate } from "./types";
 
-export async function api<T>(path: string, method = "GET", body?: NoteUpdate | ProgressUpdate): Promise<T> {
+export async function api<T>(path: string, method = "GET", body?: NoteUpdate | ProgressUpdate | HintRequest): Promise<T> {
   const response = await fetch(path, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,

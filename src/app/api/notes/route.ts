@@ -1,7 +1,7 @@
 import { lessons } from "@/lib/curriculum";
 import type { Note } from "@/lib/types";
 import { failure, readBody, success } from "@/server/http";
-import { getLearner } from "@/server/store";
+import { getLearner, saveNote } from "@/server/store";
 
 export async function GET(request: Request) {
   const lessonId = new URL(request.url).searchParams.get("lessonId");
@@ -16,8 +16,6 @@ export async function PUT(request: Request) {
     return failure("Provide lessonId and content (up to 5,000 characters) as same-origin JSON.");
   }
   if (!lessons.some((lesson) => lesson.id === body.lessonId)) return failure("Lesson not found.", 404);
-  const { user, notes } = await getLearner();
-  const note: Note = { lessonId: body.lessonId, userId: user.id, content: body.content, updatedAt: new Date().toISOString() };
-  notes.set(body.lessonId, note);
-  return success(note);
+  const { user } = await getLearner();
+  return success(saveNote(user.id, body.lessonId, body.content));
 }

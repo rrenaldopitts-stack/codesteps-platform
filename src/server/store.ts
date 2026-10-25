@@ -13,5 +13,6 @@ export interface LearnerState {
 
 export async function getLearner(): Promise<LearnerState> {
   const { user, isGuest } = await getSession();
-  return { user, isGuest, progress: readProgress(user.id), notes: readNotes(user.id) };
+  const [progress, notes] = await Promise.all([readProgress(user.id), readNotes(user.id)]);
+  return { user, isGuest, progress, notes };
 }

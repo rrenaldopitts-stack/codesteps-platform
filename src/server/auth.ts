@@ -28,10 +28,10 @@ async function setSessionCookie(token: string, maxAge: number) {
 
 export async function getSession(): Promise<SessionRecord> {
   const tokenHash = await currentTokenHash();
-  const existing = tokenHash ? findSession(tokenHash) : undefined;
+  const existing =   tokenHash ? await findSession(tokenHash) : undefined;
   if (existing) return existing;
   const token = randomBytes(32).toString("hex");
-  const session = createGuest(hashToken(token), Date.now() + guestLifetime * 1000);
+    const session = await createGuest(hashToken(token), Date.now() + guestLifetime * 1000);
   await setSessionCookie(token, guestLifetime);
   return session;
 }
@@ -56,9 +56,9 @@ export async function authenticate(body: Record<string, unknown>, register: bool
   // Use the verified persisted session as the client bucket, with a shared fallback
   // and global ceiling so dropping cookies cannot bypass the hashing budget.
   const oldTokenHash = await currentTokenHash();
-  const previous = oldTokenHash ? findSession(oldTokenHash) : undefined;
+  const previous =   oldTokenHash ? await findSession(oldTokenHash) : undefined;
   const clientKey = previous ? hashToken(previous.user.id) : "unidentified";
-  if (!consumeLimit("auth:global", 100, 900) || !consumeLimit(`auth:client:${clientKey}`, 12, 900)) {
+    if (!(await consumeLimit("auth:global", 100, 900)) || !(await consumeLimit(`auth:client:${clientKey}`, 12, 900))) {
     throw new AuthError("Too many attempts. Please try again later.", 429);
   }
   if (typeof body.username !== "string" || !/^[a-zA-Z0-9_]{3,32}$/.test(body.username) ||
@@ -66,8 +66,8 @@ export async function authenticate(body: Record<string, unknown>, register: bool
     throw new AuthError(register ? "Use a 3–32 character username (letters, numbers, underscores) and a 12–128 character password." : "Invalid username or password.", register ? 400 : 401);
   }
   const username = body.username.toLowerCase();
-  if (!consumeLimit(`auth:username:${username}`, 8, 900)) throw new AuthError("Too many attempts. Please try again later.", 429);
-  const existing = findAccount(username);
+  if (!(await consumeLimit(`auth:username:${username}`, 8, 900))) throw new AuthError("Too many attempts. Please try again later.", 429);
+  const existing = await findAccount(username);
   const salt = register ? randomBytes(16).toString("hex") : existing?.password_salt ?? "codesteps-invalid-account-salt";
   const passwordHash = await derivePassword(body.password, salt);
   if (!register && (!existing?.password_hash || !timingSafeEqual(passwordHash, Buffer.from(existing.password_hash, "hex")))) {
@@ -77,14 +77,14 @@ export async function authenticate(body: Record<string, unknown>, register: bool
   const token = randomBytes(32).toString("hex");
   let session: SessionRecord;
   try {
-    session = createAccountSession({
+    session = await createAccountSession({
       account: register
         ? { id: randomUUID(), username, salt, passwordHash: passwordHash.toString("hex") }
         : { id: existing!.id },
       oldTokenHash, tokenHash: hashToken(token), expiresAt: Date.now() + accountLifetime * 1000,
     });
   } catch (error) {
-    if (register && error instanceof Error && "code" in error && error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+    if (register && error instanceof Error && "code" in error && error.code === "23505") {
       throw new AuthError("That username is unavailable.", 409);
     }
     throw error;
@@ -95,6 +95,6 @@ export async function authenticate(body: Record<string, unknown>, register: bool
 
 export async function logout(): Promise<void> {
   const tokenHash = await currentTokenHash();
-  if (tokenHash) deleteSession(tokenHash);
+  if (tokenHash) await deleteSession(tokenHash);
   (await cookies()).delete(cookieName);
 }

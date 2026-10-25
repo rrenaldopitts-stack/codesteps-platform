@@ -15,5 +15,5 @@ export async function PATCH(request: Request) {
   const items = body.kind === "lesson" ? lessons : challenges;
   if (!items.some((item) => item.id === body.id)) return failure("Learning item not found.", 404);
   const { user } = await getLearner();
-  return success(persistProgress(user.id, body.kind, body.id, body.complete));
+  return success(await persistProgress(user.id, body.kind, body.id, body.complete));
 }

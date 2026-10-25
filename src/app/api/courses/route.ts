@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const { user } = await getSession();
-    return success(listPracticeCourses(user.id));
+    return success(await listPracticeCourses(user.id));
   } catch (error) { return practiceFailure(error); }
 }
 
@@ -25,12 +25,12 @@ export async function POST(request: Request) {
   if (!lessons.length) return failure("No supported concepts found for this topic. Try the sample notes, choose another topic, or mention a supported concept listed in the form.");
   try {
     const { user } = await getSession();
-    if (!consumeLimit(`courses:${user.id}`, 20, 3600)) return failure("Course creation limit reached. Please try again later.", 429);
+    if (!(await consumeLimit(`courses:${user.id}`, 20, 3600))) return failure("Course creation limit reached. Please try again later.", 429);
     const course: PracticeCourse = {
       id: randomUUID(), title: `${topic} practice from your notes`,
       topic, sourceNotes: body.notes, lessons, entries: {}, createdAt: new Date().toISOString(),
     };
-    insertPracticeCourse(user.id, course);
+    await insertPracticeCourse(user.id, course);
     return success(course);
   } catch (error) { return practiceFailure(error); }
 }

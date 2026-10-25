@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). No AI key or account is required for notes-based courses. SQLite is initialized automatically; the server needs a writable data directory.
+Open [localhost:3000](http://localhost:3000). No AI key or account is required for notes-based courses. Data is stored in Neon PostgreSQL: copy `.env.example` to `.env.local` and set `DATABASE_URL`. Tables are created automatically on first use.
 
 ```bash
 npm run lint     # ESLint, including Next.js and React rules
@@ -38,7 +38,7 @@ The homepage is a landing experience, not a new backend course-generation servic
 
 Dashboard XP/streaks/achievements are explicitly **sample design data**, not live account metrics. Learner quotes are explicitly **illustrative placeholders**, not verified endorsements. The **View Demo** action jumps to that sample dashboard. **Blog** opens a short learning-journal dialog, documentation opens this README, and contact opens the repository's GitHub issue form. GitHub links to this repository; LinkedIn and Twitter/X icons link to their platform homepages, not invented company profiles.
 
-The homepage requires no API key, database connection, or external fonts/images. Theme selection is scoped to the homepage and resets to dark on reload; it does not change existing course pages. The site's current SQLite persistence is unchanged—connecting a Neon PostgreSQL database is a separate task. Never place database credentials in client components or `NEXT_PUBLIC_` variables.
+The homepage itself requires no API key or external fonts/images. Learner data is stored in Neon PostgreSQL via the server-only `DATABASE_URL`. Never place database credentials in client components or `NEXT_PUBLIC_` variables.
 
 #### Files and beginner-friendly responsibilities
 
@@ -127,14 +127,14 @@ Never paste credentials, personal data, or private code into an AI tool or this 
 src/app/          Pages, shared layout, and API route handlers
 src/components/   Interactive dashboard, lesson, and challenge workspaces
 src/lib/          Shared models, curriculum fixtures, and typed API client
-src/server/       SQLite repository, session/auth helpers, and HTTP validation
+src/server/       PostgreSQL repository (`pg`), session/auth helpers, and HTTP validation
 ```
 
 `src/lib/types.ts` defines the original curriculum models and `ApiResponse<T>` envelope. `src/lib/practice-types.ts` defines courses, lessons, saved practice, and request shapes. `src/lib/practice-catalog.ts` contains authored teaching material; `src/lib/practice-generator.ts` selects concepts and their source excerpts. To expand coverage, add a catalog entry with a topic, matching pattern, explanation, glossary, real-world use, exercise, hints, solution, rubric, and quiz. No new dependency is needed.
 
 ### Storage and access
 
-- SQLite stores courses and learner data in `.data/codesteps.db`, ignored by Git. Set `CODESTEPS_DATA_DIR` to a private, writable directory on a **persistent volume** for deployment. Data survives process restarts on the same disk, not disk loss or ephemeral serverless redeploys. Back up the database; this is a single-server MVP.
+- Neon PostgreSQL stores courses and learner data, so data survives restarts and serverless redeploys. Keep `DATABASE_URL` in `.env.local` or your host's secret store, and use Neon's backup/branching features.
 - A random HttpOnly, SameSite session cookie scopes every course API request to its owner. Guest access lasts up to 30 days and depends on retaining that cookie. Production cookies require HTTPS.
 - The existing `/account` page supports username/password registration, sign-in, and sign-out. Guest courses migrate into the account when registering or signing in, without losing their practice data. Accounts allow access from another browser; they do not provide password recovery.
 - The notes page supports permanent course deletion, including its source notes and reflections.

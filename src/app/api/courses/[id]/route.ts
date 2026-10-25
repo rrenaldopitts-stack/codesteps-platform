@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const { user } = await getSession();
-    const course = readPracticeCourse(user.id, id);
+    const course = await readPracticeCourse(user.id, id);
     return course ? success(course) : failure("Course not found.", 404);
   } catch (error) { return practiceFailure(error); }
 }
@@ -30,11 +30,11 @@ export async function PATCH(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const { user } = await getSession();
-    const course = isGuide
+    const course = await (isGuide
       ? updatePracticeCourse(user.id, id, { improvedNotes: body.improvedNotes as string })
       : isAppend
       ? updatePracticeCourse(user.id, id, { additionalNotes: body.additionalNotes as string })
-      : updatePracticeCourse(user.id, id, { lessonId: body.lessonId as string, entry: body.entry as PracticeEntry });
+      : updatePracticeCourse(user.id, id, { lessonId: body.lessonId as string, entry: body.entry as PracticeEntry }));
     return success(course);
   } catch (error) { return practiceFailure(error); }
 }
@@ -45,6 +45,6 @@ export async function DELETE(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const { user } = await getSession();
-    return deletePracticeCourse(user.id, id) ? success({ deleted: true }) : failure("Course not found.", 404);
+    return await deletePracticeCourse(user.id, id) ? success({ deleted: true }) : failure("Course not found.", 404);
   } catch (error) { return practiceFailure(error); }
 }

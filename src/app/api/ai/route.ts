@@ -22,15 +22,15 @@ export async function POST(request: Request) {
   if (!process.env.OPENAI_API_KEY) return failure("Live AI is not configured. Use the local demo hints instead.", 503);
   const learner = await getLearner();
   if (learner.isGuest) return failure("Sign in to use live AI. Local demo hints remain available.", 401);
-  const course = typeof body.courseId === "string" ? readPracticeCourse(learner.user.id, body.courseId) : undefined;
+  const course = typeof body.courseId === "string" ? await readPracticeCourse(learner.user.id, body.courseId) : undefined;
   const practiceLesson = course?.lessons.find((item) => item.id === body.lessonId);
   const lesson = body.courseId ? practiceLesson && { title: practiceLesson.title, task: practiceLesson.exercise } :
     body.lessonId === "playground" ? { title: "JavaScript practice terminal", task: "Help the learner understand a small plain JavaScript example. The terminal has no network, DOM, imports, Node.js, JSX, or TypeScript support." } :
     lessons.find((item) => item.id === body.lessonId);
   if (!lesson) return failure("Lesson not found.", 404);
-  if (!consumeLimit(`ai:minute:${learner.user.id}`, 5, 60) ||
-      !consumeLimit(`ai:day:${learner.user.id}`, 30, 86400) ||
-      !consumeLimit("ai:global:day", 500, 86400)) {
+  if (!(await consumeLimit(`ai:minute:${learner.user.id}`, 5, 60)) ||
+      !(await consumeLimit(`ai:day:${learner.user.id}`, 30, 86400)) ||
+      !(await consumeLimit("ai:global:day", 500, 86400))) {
     return failure("AI request limit reached. Try again later or use a local demo hint.", 429);
   }
   try {

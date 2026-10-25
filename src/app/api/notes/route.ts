@@ -17,5 +17,5 @@ export async function PUT(request: Request) {
   }
   if (!lessons.some((lesson) => lesson.id === body.lessonId)) return failure("Lesson not found.", 404);
   const { user } = await getLearner();
-  return success(saveNote(user.id, body.lessonId, body.content));
+  return success(await saveNote(user.id, body.lessonId, body.content));
 }

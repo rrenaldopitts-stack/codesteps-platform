@@ -9,7 +9,7 @@ export function failure(error: string, status = 400) {
   return NextResponse.json<ApiResponse<never>>({ error }, { status });
 }
 
-export async function readBody(request: Request): Promise<Record<string, unknown> | null> {
+export async function readBody(request: Request, maxBytes = 24000): Promise<Record<string, unknown> | null> {
   // Reject cross-origin writes and cap streamed bodies, not just Content-Length.
   const host = request.headers.get("host");
   const protocol = new URL(request.url).protocol;
@@ -24,7 +24,7 @@ export async function readBody(request: Request): Promise<Record<string, unknown
       const { done, value } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > 24000) {
+      if (length > maxBytes) {
         await reader.cancel();
         return null;
       }

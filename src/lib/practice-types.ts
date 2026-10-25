@@ -1,11 +1,19 @@
 export const practiceTopics = ["JavaScript", "HTML & CSS", "React", "APIs"] as const;
 export type PracticeTopic = typeof practiceTopics[number];
 
+export const practiceLimits = {
+  submissionCharacters: 25000,
+  submissionBytes: 100000,
+  totalCharacters: 100000,
+  totalBytes: 200000,
+} as const;
+
 export interface PracticeLesson {
   id: string;
   title: string;
   sourceExcerpt: string;
   explanation: string;
+  clarifications?: string[];
   terms: { term: string; meaning: string }[];
   realWorld: { title: string; description: string };
   exercise: string;
@@ -29,6 +37,7 @@ export interface PracticeCourse {
   title: string;
   topic: PracticeTopic;
   sourceNotes: string;
+  improvedNotes?: string;
   createdAt: string;
   lessons: PracticeLesson[];
   entries: Record<string, PracticeEntry>;
@@ -47,4 +56,8 @@ export interface CreatePracticeRequest {
 export interface SavePracticeRequest {
   lessonId: string;
   entry: PracticeEntry;
+}
+
+export interface SaveImprovedNotesRequest {
+  improvedNotes: string;
 }

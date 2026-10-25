@@ -168,6 +168,35 @@ progress::-moz-progress-bar { background: var(--teal); }
 .challenge-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .challenge-list .panel { margin: 0; }
 .challenge-list p { min-height: 65px; }
+.course-nav { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 26px; font-size: 12px; color: var(--teal); }
+.course-nav a:hover { text-decoration: underline; }
+.course-nav [aria-current="page"] { font-weight: 700; text-decoration: underline; }
+.course-title { overflow-wrap: anywhere; }
+.source-panel { background: #f2f5ef; }
+.source-panel blockquote { margin: 0; border-left: 3px solid var(--teal); padding: 5px 0 5px 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.source-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; max-height: 380px; overflow: auto; margin-top: 18px; }
+.source-notes { min-height: 260px; }
+.compact-input { min-height: 0; margin-bottom: 16px; }
+textarea.compact-input { min-height: 95px; }
+.notes-builder { max-width: 850px; }
+.notes-builder input[type="file"] { display: block; max-width: 100%; font-size: 13px; }
+.glossary dt { font-size: 13px; font-weight: 700; }
+.glossary dd { margin: 0 0 15px; color: var(--muted); font-size: 13px; }
+.practice-code { font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; padding: 15px; background: #f4f6f1; border: 1px solid var(--border); border-radius: 5px; margin-block: 15px; }
+.quiz-fieldset { border: 0; padding: 0; margin: 0 0 20px; min-width: 0; }
+.quiz-fieldset legend { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.quiz-choice, .option-label { display: flex; align-items: start; gap: 10px; font-size: 13px; line-height: 1.8; margin-bottom: 15px; cursor: pointer; }
+.quiz-choice input, .option-label input { margin-top: 5px; flex-shrink: 0; accent-color: var(--teal); width: 17px; height: 17px; }
+details { margin-bottom: 20px; }
+summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--teal); }
+.clarifications { border-left: 3px solid #a3baa2; padding-left: 17px; margin-top: 22px; }
+.review-note { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; }
+.runner-frame { display: none; }
+.terminal-console { background: #192b29; color: #d9e8de; border-radius: 7px; padding: 18px; margin-top: 18px; min-height: 130px; max-height: 350px; overflow: auto; }
+.terminal-console pre { font-family: Consolas, monospace; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 8px; }
+.terminal-console p { font-size: 12px; color: #d9e8de; }
+.terminal-console .terminal-error { color: #ffc1b4; }
+.coach-response { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 10px; }
 @media (max-width: 1000px) {
   .hero { gap: 28px; padding-top: 55px; }
   .hero h1 { font-size: 3.1rem; }

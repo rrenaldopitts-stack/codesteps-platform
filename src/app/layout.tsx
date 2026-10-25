@@ -15,8 +15,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="site-header"><div className="container header-inner">
           <Link href="/" className="logo" aria-label="CodeSteps home"><span className="logo-mark" aria-hidden="true">{"</>"}</span><span>codeSteps<span className="logo-dot">.</span></span></Link>
           <nav aria-label="Main navigation" className="nav">
-            <Link className="desktop-link" href="/#how-it-works">How it works</Link>
-            <Link className="desktop-link" href="/#curriculum">Curriculum</Link>
+            <Link href="/courses">My courses</Link>
+            <Link href="/playground">Terminal</Link>
             <Link href="/challenges">Practice</Link>
             <Link href="/dashboard" className="button primary small">Start learning <span aria-hidden="true">↗</span></Link>
           </nav>

@@ -1,6 +1,7 @@
 import type { ApiResponse, HintRequest, NoteUpdate, ProgressUpdate } from "./types";
+import type { CreatePracticeRequest, SaveImprovedNotesRequest, SavePracticeRequest } from "./practice-types";
 
-export async function api<T>(path: string, method = "GET", body?: NoteUpdate | ProgressUpdate | HintRequest): Promise<T> {
+export async function api<T>(path: string, method = "GET", body?: NoteUpdate | ProgressUpdate | HintRequest | CreatePracticeRequest | SavePracticeRequest | SaveImprovedNotesRequest | { additionalNotes: string } | { confirm: boolean }): Promise<T> {
   const response = await fetch(path, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,

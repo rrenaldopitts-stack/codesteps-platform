@@ -3,6 +3,9 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Note, Progress, User } from "@/lib/types";
+import type { PracticeCourse, PracticeEntry, PracticeSummary } from "@/lib/practice-types";
+import { practiceLimits } from "@/lib/practice-types";
+import { createPracticeLessons } from "@/lib/practice-generator";
 
 export interface AccountRecord {
   id: string;
@@ -66,6 +69,12 @@ function openDatabase() {
       expires_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS rate_limits_expiry ON rate_limits(expires_at);
+    CREATE TABLE IF NOT EXISTS practice_courses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      document TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS practice_courses_user ON practice_courses(user_id);
   `);
   return db;
 }
@@ -145,6 +154,7 @@ export function createAccountSession(input: AccountSessionInput): SessionRecord 
         .run(target.id, previous.user.id);
       db.prepare("INSERT OR IGNORE INTO notes (user_id, lesson_id, content, updated_at) SELECT ?, lesson_id, content, updated_at FROM notes WHERE user_id = ?")
         .run(target.id, previous.user.id);
+      db.prepare("UPDATE practice_courses SET user_id = ? WHERE user_id = ?").run(target.id, previous.user.id);
       db.prepare("DELETE FROM users WHERE id = ? AND is_guest = 1").run(previous.user.id);
     }
     if (input.oldTokenHash) db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(input.oldTokenHash);
@@ -191,4 +201,71 @@ export function saveNote(userId: string, lessonId: string, content: string): Not
     ON CONFLICT(user_id, lesson_id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at`)
     .run(userId, lessonId, content, note.updatedAt);
   return note;
+}
+
+export class PracticeError extends Error {
+  constructor(message: string, public status = 400) { super(message); }
+}
+
+export function readPracticeCourse(userId: string, id: string): PracticeCourse | undefined {
+  const row = database().prepare("SELECT document FROM practice_courses WHERE user_id = ? AND id = ?").get(userId, id) as { document: string } | undefined;
+  return row ? JSON.parse(row.document) as PracticeCourse : undefined;
+}
+
+export function listPracticeCourses(userId: string): PracticeSummary[] {
+  const rows = database().prepare("SELECT document FROM practice_courses WHERE user_id = ? ORDER BY rowid DESC").all(userId) as { document: string }[];
+  return rows.map(({ document }) => {
+    const course = JSON.parse(document) as PracticeCourse;
+    return {
+      id: course.id, title: course.title, topic: course.topic, createdAt: course.createdAt,
+      lessonCount: course.lessons.length,
+      completedCount: Object.values(course.entries).filter((entry) => entry.complete).length,
+    };
+  });
+}
+
+export function insertPracticeCourse(userId: string, course: PracticeCourse): void {
+  const db = database();
+  db.transaction(() => {
+    const { total } = db.prepare("SELECT count(*) AS total FROM practice_courses WHERE user_id = ?").get(userId) as { total: number };
+    if (total >= 12) throw new PracticeError("You can save 12 courses. Delete an older course before creating another.", 409);
+    db.prepare("INSERT INTO practice_courses (id, user_id, document) VALUES (?, ?, ?)").run(course.id, userId, JSON.stringify(course));
+  }).immediate();
+}
+
+export function updatePracticeCourse(userId: string, id: string, update: { additionalNotes: string } | { improvedNotes: string } | { lessonId: string; entry: PracticeEntry }): PracticeCourse {
+  const db = database();
+  return db.transaction(() => {
+    const course = readPracticeCourse(userId, id);
+    if (!course) throw new PracticeError("Course not found.", 404);
+    if ("additionalNotes" in update) {
+      const combined = `${course.sourceNotes}\n\n${update.additionalNotes}`;
+      if (combined.length > practiceLimits.totalCharacters || Buffer.byteLength(combined, "utf8") > practiceLimits.totalBytes) {
+        throw new PracticeError("Combined notes must fit within 100,000 characters and 200 KB. Start another course for more notes.");
+      }
+      const additions = createPracticeLessons(course.topic, update.additionalNotes)
+        .filter((lesson) => !course.lessons.some((existing) => existing.id === lesson.id));
+      course.sourceNotes = combined;
+      course.lessons.push(...additions);
+    } else if ("improvedNotes" in update) {
+      course.improvedNotes = update.improvedNotes;
+    } else {
+      const lesson = course.lessons.find((item) => item.id === update.lessonId);
+      if (!lesson) throw new PracticeError("Lesson not found in this course.", 404);
+      if (update.entry.quizChoice !== null && update.entry.quizChoice >= lesson.quiz.choices.length) {
+        throw new PracticeError("Choose one of this lesson's quiz options.");
+      }
+      if (update.entry.complete && (!update.entry.answer.trim() || !update.entry.reflection.trim() ||
+        update.entry.quizChoice !== lesson.quiz.answerIndex)) {
+        throw new PracticeError("Attempt the exercise, answer the quiz correctly, and write a reflection before completing the lesson.");
+      }
+      course.entries[update.lessonId] = update.entry;
+    }
+    db.prepare("UPDATE practice_courses SET document = ? WHERE user_id = ? AND id = ?").run(JSON.stringify(course), userId, id);
+    return course;
+  }).immediate();
+}
+
+export function deletePracticeCourse(userId: string, id: string): boolean {
+  return database().prepare("DELETE FROM practice_courses WHERE user_id = ? AND id = ?").run(userId, id).changes > 0;
 }

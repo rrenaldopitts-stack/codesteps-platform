@@ -61,6 +61,8 @@ export interface NoteUpdate {
 
 export interface HintRequest {
   lessonId: string;
+  courseId?: string;
+  question?: string;
   intent: "hint" | "error" | "review";
   code: string;
   error: string;

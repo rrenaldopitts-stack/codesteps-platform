@@ -1,6 +1,6 @@
-# CodeSteps
+# LearnFlow AI
 
-A beginner-friendly full-stack learning website for learning to code **alongside AI, not on autopilot**. Built with Next.js App Router, TypeScript, and Tailwind CSS.
+A beginner-friendly full-stack learning website for learning to code **alongside AI, not on autopilot**. Built with Next.js App Router, TypeScript, Tailwind CSS, and locally owned shadcn-style UI primitives.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ npm start       # Serve the production build
 
 ## Walkthrough
 
-- **Home `/`**: explore the learning philosophy, curriculum, and benefits.
+- **Home `/`**: a responsive, dark-by-default landing page with a light-mode toggle, topic search, expandable roadmap cards, learning features, and a sample dashboard.
 - **My Courses `/courses`**: see saved courses created from your own notes.
 - **Create Course `/courses/new`**: choose a topic, paste notes, import a `.txt`/`.md` file, or start from a sample.
 - **Course Overview `/courses/:id`**: see matched lessons and continue your practice path.
@@ -31,6 +31,44 @@ npm start       # Serve the production build
 - **Dashboard `/dashboard`**: access notes-based courses and the four beginner curriculum modules.
 - **Lessons `/lessons/your-first-page`**: read instructions, attempt a task in a scratchpad, request hints, save a reflection, and mark completion. The other modules cover JavaScript, React, and APIs.
 - **Practice `/challenges`**: choose a challenge, test your solution in your own editor, review every rubric item, then mark it complete. Completion can be undone.
+
+### How the homepage works
+
+The homepage is a landing experience, not a new backend course-generation service. **Generate Learning Path** matches JavaScript, Python, React, SQL, TypeScript, Node.js, or AI Engineering to a curated preview. It handles aliases such as `js` and unsupported/empty searches without making external requests. Relevant previews open an existing lesson or an official external learning resource. Roadmap buttons expand their ordered steps inline.
+
+Dashboard XP/streaks/achievements are explicitly **sample design data**, not live account metrics. Learner quotes are explicitly **illustrative placeholders**, not verified endorsements. The **View Demo** action jumps to that sample dashboard. **Blog** opens a short learning-journal dialog, documentation opens this README, and contact opens the repository's GitHub issue form. GitHub links to this repository; LinkedIn and Twitter/X icons link to their platform homepages, not invented company profiles.
+
+The homepage requires no API key, database connection, or external fonts/images. Theme selection is scoped to the homepage and resets to dark on reload; it does not change existing course pages. The site's current SQLite persistence is unchanged—connecting a Neon PostgreSQL database is a separate task. Never place database credentials in client components or `NEXT_PUBLIC_` variables.
+
+#### Files and beginner-friendly responsibilities
+
+| File or folder | What it does / what to learn |
+| --- | --- |
+| `src/app/page.tsx` | Server-rendered page composition: hero, features, roadmaps, three steps, learner stories, dashboard preview, CTA, and footer. Learn semantic HTML, JSX, and mapping data into cards. |
+| `src/components/home/landing-shell.tsx` | Client-side dark/light toggle and accessible mobile menu. Learn React state, events, and cleanup of an Escape-key listener. |
+| `src/components/home/topic-search.tsx` | Labeled search form, suggestion buttons, curated results, and empty/unknown input feedback. Learn controlled inputs, form submission, and conditional rendering. |
+| `src/components/home/code-preview.tsx` | Static code-themed illustration. It displays code rather than executing it. |
+| `src/components/home/dashboard-preview.tsx` | Reusable sample dashboard with a labeled Radix progress bar. Keeps demonstration data separate from real learner progress. |
+| `src/components/home/section-heading.tsx` | Shared section title/description layout, using props instead of repeated markup. |
+| `src/components/home/learning-journal.tsx` | Native modal dialog with browser-managed focus and Escape behavior. |
+| `src/components/home/social-icons.tsx` | Small local SVG social icons, avoiding another icon dependency. |
+| `src/components/ui/` | Locally owned shadcn-style Button, Card, Input, Badge, and Progress primitives; Radix supplies slot composition and progress semantics, CVA defines button variants. |
+| `src/lib/home-content.ts` | Typed topics, roadmaps, and placeholder stories, separated from presentation. |
+| `src/lib/utils.ts` | The `cn` helper combines conditional classes and resolves Tailwind class conflicts. |
+| `src/app/home.css` | Homepage-scoped theme tokens, gradients, visual treatments, responsive adjustments, focus states, and reduced-motion behavior. Tailwind handles layout and spacing in components. |
+| `src/components/site-frame.tsx` | Preserves the existing learning-page header/footer while letting the homepage use its own dark navigation. |
+| `components.json` | shadcn configuration for aliases, CSS, and component locations. The CLI registry was unreachable during implementation; primitives were integrated locally using the same compositional patterns. |
+
+#### Verify the homepage
+
+Run `npm run lint` and `npm run build`, then `npm start`.
+
+1. Check desktop and narrow mobile widths in both themes.
+2. Submit a topic, use every suggestion, test `js`, and try empty and unknown input.
+3. Open every roadmap and follow its first-step link.
+4. Tab through the page, use the skip link, open/close mobile navigation, and close it with Escape.
+5. Open **Blog**, verify focus stays in the dialog, close with Escape, and confirm focus returns.
+6. Follow the primary CTAs and verify the existing account, course, practice, and dashboard pages still work without duplicate navigation.
 
 ### How notes-based courses work
 
